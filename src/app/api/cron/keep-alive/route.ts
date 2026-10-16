@@ -43,12 +43,17 @@ export async function GET(request: NextRequest) {
         project.authTag
       );
 
+      const headers: HeadersInit = {
+        apikey: apiKey,
+      };
+
+      if (apiKey.startsWith("eyJ")) {
+        headers.Authorization = `Bearer ${apiKey}`;
+      }
+
       const response = await fetch(project.targetUrl, {
         method: "GET",
-        headers: {
-          apikey: apiKey,
-          Authorization: `Bearer ${apiKey}`,
-        },
+        headers,
         cache: "no-store",
       });
 
