@@ -204,13 +204,29 @@ export async function manualPingProject(id: string): Promise<Project> {
       project.authTag
     );
 
-    const headers: HeadersInit = {
+    const maskedKey = `${apiKey.substring(0, 10)}... (length: ${apiKey.length})`;
+    const headers: Record<string, string> = {
       apikey: apiKey,
     };
 
     if (apiKey.startsWith("eyJ")) {
       headers.Authorization = `Bearer ${apiKey}`;
     }
+
+    const maskedHeaders = Object.fromEntries(
+      Object.entries(headers).map(([k, v]) => [
+        k,
+        v.startsWith("Bearer ")
+          ? `Bearer ${v.slice(7, 17)}...`
+          : `${v.substring(0, 10)}...`,
+      ])
+    );
+
+    console.log("[manualPingProject] Request debug info:", {
+      targetUrl: project.targetUrl,
+      apiKeyPrefix: maskedKey,
+      headers: maskedHeaders,
+    });
 
     const response = await fetch(project.targetUrl, {
       method: "GET",
@@ -219,8 +235,22 @@ export async function manualPingProject(id: string): Promise<Project> {
     });
 
     statusCode = response.status;
-  } catch {
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[manualPingProject] Error response from target:", {
+        statusCode: response.status,
+        statusText: response.statusText,
+        errorBody: errorText,
+      });
+    } else {
+      console.log("[manualPingProject] Ping succeeded:", {
+        statusCode: response.status,
+      });
+    }
+  } catch (error) {
     statusCode = 500;
+    console.error("[manualPingProject] Fetch exception:", error);
   }
 
   const [updated] = await db
