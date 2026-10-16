@@ -6,10 +6,15 @@ import {
   Loader2Icon,
   MoreHorizontalIcon,
   PencilIcon,
+  PlayIcon,
   ServerIcon,
   Trash2Icon,
 } from "lucide-react";
-import { deleteProject, toggleProjectStatus } from "@/actions/project";
+import {
+  deleteProject,
+  manualPingProject,
+  toggleProjectStatus,
+} from "@/actions/project";
 import type { Project } from "@/lib/db/schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -84,7 +89,9 @@ export function ProjectTable({ projects }: ProjectTableProps) {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
   const [pendingToggleId, setPendingToggleId] = useState<string | null>(null);
+  const [pendingPingId, setPendingPingId] = useState<string | null>(null);
   const [isToggling, startToggleTransition] = useTransition();
+  const [isPinging, startPingTransition] = useTransition();
   const [isDeleting, startDeleteTransition] = useTransition();
 
   function handleToggleStatus(project: Project, checked: boolean) {
@@ -94,6 +101,19 @@ export function ProjectTable({ projects }: ProjectTableProps) {
         await toggleProjectStatus(project.id, checked);
       } finally {
         setPendingToggleId(null);
+      }
+    });
+  }
+
+  function handleManualPing(project: Project) {
+    setPendingPingId(project.id);
+    startPingTransition(async () => {
+      try {
+        await manualPingProject(project.id);
+      } catch (error) {
+        console.error("Failed to execute manual ping:", error);
+      } finally {
+        setPendingPingId(null);
       }
     });
   }
@@ -146,6 +166,7 @@ export function ProjectTable({ projects }: ProjectTableProps) {
             {projects.map((project) => {
               const isRowToggling =
                 isToggling && pendingToggleId === project.id;
+              const isRowPinging = isPinging && pendingPingId === project.id;
 
               return (
                 <TableRow key={project.id}>
@@ -192,35 +213,58 @@ export function ProjectTable({ projects }: ProjectTableProps) {
                     </div>
                   </TableCell>
                   <TableCell className="pr-4 text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label="操作メニューを開く"
-                          />
-                        }
+                    <div className="inline-flex items-center justify-end gap-1.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={isRowPinging}
+                        onClick={() => handleManualPing(project)}
+                        aria-label={`${project.name} に手動でPingを送信`}
                       >
-                        <MoreHorizontalIcon className="size-4" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => setEditingProject(project)}
+                        {isRowPinging ? (
+                          <>
+                            <Loader2Icon className="mr-1 size-3.5 animate-spin" />
+                            送信中...
+                          </>
+                        ) : (
+                          <>
+                            <PlayIcon className="mr-1 size-3.5" />
+                            手動実行
+                          </>
+                        )}
+                      </Button>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label="操作メニューを開く"
+                            />
+                          }
                         >
-                          <PencilIcon className="mr-1.5 size-4" />
-                          編集
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => setDeletingProject(project)}
-                        >
-                          <Trash2Icon className="mr-1.5 size-4" />
-                          削除
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          <MoreHorizontalIcon className="size-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => setEditingProject(project)}
+                          >
+                            <PencilIcon className="mr-1.5 size-4" />
+                            編集
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => setDeletingProject(project)}
+                          >
+                            <Trash2Icon className="mr-1.5 size-4" />
+                            削除
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </TableCell>
                 </TableRow>
               );

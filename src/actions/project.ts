@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { type Project, projects } from "@/lib/db/schema";
-import { encrypt } from "@/lib/utils/crypto";
+import { decrypt, encrypt } from "@/lib/utils/crypto";
 
 const createProjectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
@@ -173,6 +173,65 @@ export async function toggleProjectStatus(
   if (!updated) {
     throw new Error("Project not found or unauthorized");
   }
+
+  revalidatePath("/dashboard");
+  return updated;
+}
+
+/**
+ * 指定されたプロジェクトに対して即座に手動でPingを実行し、ステータスを更新する
+ */
+export async function manualPingProject(id: string): Promise<Project> {
+  const userId = await requireUserId();
+
+  const [project] = await db
+    .select()
+    .from(projects)
+    .where(and(eq(projects.id, id), eq(projects.userId, userId)))
+    .limit(1);
+
+  if (!project) {
+    throw new Error("Project not found or unauthorized");
+  }
+
+  const pingTime = new Date();
+  let statusCode = 500;
+
+  try {
+    const apiKey = decrypt(
+      project.encryptedApiKey,
+      project.iv,
+      project.authTag
+    );
+
+    const headers: HeadersInit = {
+      apikey: apiKey,
+    };
+
+    if (apiKey.startsWith("eyJ")) {
+      headers.Authorization = `Bearer ${apiKey}`;
+    }
+
+    const response = await fetch(project.targetUrl, {
+      method: "GET",
+      headers,
+      cache: "no-store",
+    });
+
+    statusCode = response.status;
+  } catch {
+    statusCode = 500;
+  }
+
+  const [updated] = await db
+    .update(projects)
+    .set({
+      lastPingAt: pingTime,
+      lastStatusCode: statusCode,
+      updatedAt: pingTime,
+    })
+    .where(and(eq(projects.id, id), eq(projects.userId, userId)))
+    .returning();
 
   revalidatePath("/dashboard");
   return updated;
