@@ -22,7 +22,26 @@ import { Switch } from "@/components/ui/switch";
 
 const projectFormSchema = z.object({
   name: z.string().min(1, "プロジェクト名を入力してください"),
-  targetUrl: z.string().url("有効なURL（https://...）を入力してください"),
+  targetUrl: z
+    .string()
+    .url("有効なURL（https://...）を入力してください")
+    .refine(
+      (val) => {
+        try {
+          const parsedUrl = new URL(val);
+          return (
+            !parsedUrl.pathname.includes("/rest/v1/") &&
+            !parsedUrl.pathname.endsWith("/rest/v1")
+          );
+        } catch {
+          return true;
+        }
+      },
+      {
+        message:
+          "SupabaseのREST APIルート(/rest/v1/)は401エラーになります。代わりに /auth/v1/health などを指定してください",
+      }
+    ),
   apiKey: z.string(),
   pingIntervalDays: z
     .number({ message: "数値を入力してください" })
@@ -137,13 +156,13 @@ export function ProjectForm({
               <FormControl>
                 <Input
                   type="url"
-                  placeholder="https://xxxx.supabase.co/rest/v1/"
+                  placeholder="https://xxxx.supabase.co/auth/v1/health"
                   disabled={isPending}
                   {...field}
                 />
               </FormControl>
               <FormDescription>
-                定期Pingを送信するHTTPエンドポイントのURLを入力してください。
+                監視対象のエンドポイントURL。Supabaseの場合は &apos;https://[プロジェクトID].supabase.co/auth/v1/health&apos; を推奨します。
               </FormDescription>
               <FormMessage />
             </FormItem>
