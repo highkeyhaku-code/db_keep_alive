@@ -9,6 +9,7 @@ const envSchema = z.object({
   ENCRYPTION_KEY: z
     .string()
     .min(32, "ENCRYPTION_KEY must be at least 32 characters long"),
+  CRON_SECRET: z.string().min(1, "CRON_SECRET is required"),
 });
 
 const processEnv = {
@@ -17,6 +18,7 @@ const processEnv = {
   CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
   POSTGRES_URL: process.env.POSTGRES_URL,
   ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
+  CRON_SECRET: process.env.CRON_SECRET,
 };
 
 const parsed = envSchema.safeParse(processEnv);
