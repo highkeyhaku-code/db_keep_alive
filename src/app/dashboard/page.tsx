@@ -2,12 +2,12 @@ import { Suspense } from "react";
 import { auth } from "@clerk/nextjs/server";
 import { UserButton } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
-import { ActivityIcon } from "lucide-react";
+import { ActivityIcon, Loader2Icon } from "lucide-react";
 import { getProjects } from "@/actions/project";
 import { AddProjectBtn } from "./_components/add-project-btn";
 import { ProjectTable } from "./_components/project-table";
 
-export default async function DashboardPage() {
+async function DashboardProjectsSection() {
   const { userId } = await auth();
 
   if (!userId) {
@@ -15,7 +15,10 @@ export default async function DashboardPage() {
   }
 
   const projects = await getProjects();
+  return <ProjectTable projects={projects} />;
+}
 
+export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card/40">
@@ -47,7 +50,16 @@ export default async function DashboardPage() {
           <AddProjectBtn />
         </div>
 
-        <ProjectTable projects={projects} />
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center rounded-xl border bg-card/50 py-16 text-sm text-muted-foreground">
+              <Loader2Icon className="mr-2 size-4 animate-spin" />
+              プロジェクト一覧を読み込み中...
+            </div>
+          }
+        >
+          <DashboardProjectsSection />
+        </Suspense>
       </main>
     </div>
   );
