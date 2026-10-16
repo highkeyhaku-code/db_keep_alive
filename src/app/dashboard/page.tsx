@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { auth } from "@clerk/nextjs/server";
 import { UserButton } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
@@ -27,7 +28,9 @@ export default async function DashboardPage() {
               Supabase Keep Alive
             </span>
           </div>
-          <UserButton />
+          <Suspense fallback={null}>
+            <UserButton />
+          </Suspense>
         </div>
       </header>
 
